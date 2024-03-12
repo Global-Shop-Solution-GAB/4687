@@ -1,0 +1,357 @@
+Program.Sub.ScreenSU.Start
+Gui.frmdash..Create
+Gui.frmdash..Caption("")
+Gui.frmdash..Size(25650,13500)
+Gui.frmdash..MinX(0)
+Gui.frmdash..MinY(0)
+Gui.frmdash..Position(0,0)
+Gui.frmdash..BackColor(-2147483633)
+Gui.frmdash..MousePointer(0)
+Gui.frmdash..Event(UnLoad,frmMaint_UnLoad)
+Gui.frmdash.GsGrid.Create(GsGridControl)
+Gui.frmdash.GsGrid.Size(25215,12075)
+Gui.frmdash.GsGrid.Position(135,735)
+Gui.frmdash.GsGrid.Event(CellValueChanged,GsGrid_CellValueChanged)
+Gui.frmdash.GsGrid.Event(RowCellClick,GsGrid_RowCellClick)
+Gui.frmdash.cmdRefresh.Create(Button)
+Gui.frmdash.cmdRefresh.Size(855,375)
+Gui.frmdash.cmdRefresh.Position(150,180)
+Gui.frmdash.cmdRefresh.Caption("Refresh")
+Gui.frmdash.cmdRefresh.Event(Click,cmdRefresh_Click)
+Gui.frmdash.cmdDashSave.Create(Button)
+Gui.frmdash.cmdDashSave.Size(855,375)
+Gui.frmdash.cmdDashSave.Position(1110,180)
+Gui.frmdash.cmdDashSave.Caption("Save")
+Gui.frmdash.cmdDashSave.Event(Click,cmdDashSave_Click)
+Gui.frmdash.cmdExport.Create(Button)
+Gui.frmdash.cmdExport.Size(855,375)
+Gui.frmdash.cmdExport.Position(2085,180)
+Gui.frmdash.cmdExport.Caption("Export")
+Gui.frmdash.cmdExport.Event(Click,cmdExport_Click)
+Gui.frmdash.lbl1.Create(Label,"Houston Dynamic Service Production Log",True,9735,495,0,8100,180,True,0,"Arial Black",12,-2147483633,0)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+V.Global.bDataChanged.Declare(Boolean)
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.Try
+	V.Local.sOrdNo.Declare(String)
+
+	'Production_Log_Template - in gab\gas folder.
+	'any changes to the dashbord should be made to the template as well
+	'custom menu
+	F.ODBC.Connection!conx.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+	F.Intrinsic.Control.CallSub(ShowData_Grid)
+	Gui.frmdash..Show
+	Gui.frmdash..WindowState(2)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.Main.End
+
+Program.Sub.cmdSave_Click.Start
+F.Intrinsic.Control.Try
+	V.Local.sFilter.Declare(String)
+
+	V.Local.sFilter.Set("Mach_Shop <> '' OR Rotor_Shop <> '' OR Mech_Shop <> '' OR Notes <> ''")
+
+	F.Data.DataView.Create("Header","GridView",22,V.Local.sFilter,"")
+
+	F.Data.DataView.ToDataTable("Header","GridView","DTSave")
+
+	F.ODBC.Connection!conx.Execute("DELETE FROM GCG_4687_Production")
+	F.Data.DataTable.SaveToDB("DTSave","conx","GCG_4687_Production","order_no",256,"order_no@!@order_no*!*MACH_SHOP@!@MACH_SHOP*!*ROTOR_SHOP@!@ROTOR_SHOP*!*MECH_SHOP@!@MECH_SHOP*!*Notes@!@Notes")
+	
+	F.Data.DataView.Close("Header", "GridView")
+
+
+	V.Global.bDataChanged.Set(False)
+	F.Intrinsic.UI.Msgbox("Data Saved Successfully")
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdSave_Click.End
+
+Program.Sub.cmdRefresh_Click.Start
+F.Intrinsic.Control.Try
+
+	Gui.frmdash..Visible(False)
+	
+	F.Intrinsic.Control.CallSub(ShowData_Grid)
+	
+	Gui.frmdash..Visible(True)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdRefresh_Click.End
+
+Program.Sub.cmdDashSave_Click.Start
+F.Intrinsic.Control.Try
+
+	F.Intrinsic.UI.InvokeWaitDialog("Processing ...")
+	
+	F.Intrinsic.Control.CallSub(cmdsave_click,"Mode","GRID")
+	
+	F.Intrinsic.UI.CloseWaitDialog
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.UI.CloseWaitDialog
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdDashSave_Click.End
+
+Program.Sub.frmMaint_UnLoad.Start
+F.Intrinsic.Control.Try
+	V.Local.iMsgBoxReturn.Declare(Long)
+
+	F.Intrinsic.Control.If(V.Global.bDataChanged)
+		F.Intrinsic.UI.MsgBox("Data not saved, Do you want to save?", "Confirm",4,V.Local.iMsgBoxReturn)
+		
+		F.Intrinsic.Control.If(V.Local.iMsgBoxReturn,=,6)
+			F.Intrinsic.Control.CallSub(cmdDashSave_Click)
+		F.Intrinsic.Control.EndIf
+		
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.If(v.DataTable.Header.Exists)
+		F.Data.DataTable.Close("Header")
+	F.Intrinsic.Control.EndIf
+
+	F.Intrinsic.Control.If(v.DataTable.DTSave.Exists)
+		F.Data.DataTable.Close("DTSave")
+	F.Intrinsic.Control.EndIf
+	
+	F.ODBC.Connection!conx.Close
+	F.Intrinsic.Control.End
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.frmMaint_UnLoad.End
+
+Program.Sub.ShowData_Grid.Start
+F.Intrinsic.Control.Try
+	V.Local.sSQL.Declare(String)
+	V.Local.iColumnIndex.Declare(Long)
+	V.Local.iMaxColumnIndex.Declare(Long)
+	V.Local.sTitle.Declare(String)
+	
+	F.Intrinsic.UI.InvokeWaitDialog("Processing ...")
+	
+	V.Local.sSQL.Set("SELECT H.Order_No, D.Product_line, S.Name_Customer_Ship, D.Description, CONVERT(H.Date_Due, SQL_CHAR) AS Date_Due, RTRIM(H.Customer_PO) AS Customer_PO, RTRIM(H.User_1) AS User_1, Mech_Shop, Mach_Shop, Rotor_Shop")
+	F.Intrinsic.String.Build("{0}, Notes FROM V_Order_Header H LEFT JOIN GCG_4687_Production P ON H.Order_No = P.Order_No JOIN V_Order_Lines AS D ON H.Order_No = D.Order_No JOIN V_Order_Ship_To AS S ON H.Order_No = S.Order_No AND H.Ship_ID = S.Ship_ID",V.Local.sSQL,V.Local.sSQL)
+	F.Intrinsic.String.Build("{0} WHERE Qty_BO > 0 AND D.Record_No = '0010' ORDER BY H.User_1, H.Date_Due, H.Order_No",V.Local.sSQL,V.Local.sSQL)
+	
+	F.Intrinsic.Control.If(v.DataTable.Header.Exists)
+		F.Data.DataTable.Close("Header")
+	F.Intrinsic.Control.EndIf
+
+	F.Data.DataTable.CreateFromSql("Header","conx",V.Local.sSQL,True)
+	
+	F.Data.DataView.Create("Header","HeaderV")
+	
+	Gui.frmdash.GsGrid.AddGridViewFromDataTable("Grid_Header","Header")
+	
+	Gui.frmdash.GsGrid.GetColumnCount("Grid_Header",V.Local.iMaxColumnIndex)
+	F.Intrinsic.Math.Sub(V.Local.iMaxColumnIndex,1,V.Local.iMaxColumnIndex)
+	
+	F.Intrinsic.Control.For(V.Local.iColumnIndex,0,V.Local.iMaxColumnIndex,1)
+		Gui.frmdash.GsGrid.GetColumnNamebyIndex("Grid_Header",V.Local.iColumnIndex,V.Local.sTitle)
+	
+		Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header",V.Local.sTitle,"MinWidth",60)
+	
+		Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header",V.Local.sTitle,"AllowEdit",False)
+		Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header",V.Local.sTitle,"ReadOnly",True)
+		Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header",V.Local.sTitle,"HeaderFontBold","True")
+	
+		Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header",V.Local.sTitle,"CellVAlignment","Top")
+	F.Intrinsic.Control.Next(V.Local.iColumnIndex)
+	
+	Gui.frmdash.GsGrid.SetGridViewProperty("Grid_Header", "Enableappearanceevenrow", "True")
+	
+	Gui.frmdash.GsGrid.SetGridViewProperty("Grid_Header", "OptionsViewRowAutoHeight", "True")
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","notes","CellWordWrap","wrap")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MECH_SHOP","CellWordWrap","wrap")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MACH_SHOP","CellWordWrap","wrap")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","ROTOR_SHOP","CellWordWrap","wrap")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","name_customer_ship","CellWordWrap","wrap")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","description","CellWordWrap","wrap")
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","order_no","Caption","Project")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","Product_line","Caption","PL")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","name_customer_ship","Caption","Customer Name")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","description","Caption","Work Description")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","date_due","Caption","Due Date")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","customer_PO","Caption","PO Status")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","User_1","Caption","Priority Status")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MECH_SHOP","Caption","Mechanic Shop Status")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MACH_SHOP","Caption","Machine Shop Status")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","ROTOR_SHOP","Caption","Rotor Shop Status")
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","date_due","CellHAlignment","center")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","customer_PO","CellHAlignment","center")
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","User_1","CellHAlignment","center")
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MECH_SHOP","AllowEdit",True)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MECH_SHOP","ReadOnly",False)
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MACH_SHOP","AllowEdit",True)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MACH_SHOP","ReadOnly",False)
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","ROTOR_SHOP","AllowEdit",True)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","ROTOR_SHOP","ReadOnly",False)
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","Notes","AllowEdit",True)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","Notes","ReadOnly",False)
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","order_no","MinWidth",70)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","Product_line","MinWidth",30)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","User_1","MinWidth",70)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MACH_SHOP","MinWidth",180)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","ROTOR_SHOP","MinWidth",180)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MECH_SHOP","MinWidth",180)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","Notes","MinWidth",180)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","name_customer_ship","MinWidth",150)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","customer_PO","MinWidth",70)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","date_due","MinWidth",60)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","description","MinWidth",150)
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","order_no","MaxWidth",70)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","Product_line","MaxWidth",30)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","User_1","MaxWidth",90)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MACH_SHOP","MaxWidth",250)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","ROTOR_SHOP","MaxWidth",250)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","MECH_SHOP","MaxWidth",250)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","Notes","MaxWidth",250)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","name_customer_ship","MaxWidth",180)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","customer_PO","MaxWidth",90)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","date_due","MaxWidth",80)
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","description","MaxWidth",180)
+	
+	Gui.frmdash.GsGrid.SetColumnProperty("Grid_Header","order_no","CellForeColor","Blue")
+	
+	F.Data.DataTable.SetValueFormat("Header",-1,"date_due","date_due","MM/DD/YYYY")
+	
+	Gui.frmdash.GsGrid.MainView("Grid_Header")
+	Gui.frmDash.GsGrid.Anchor(15)
+	
+	F.Intrinsic.UI.CloseWaitDialog
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.UI.CloseWaitDialog
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.ShowData_Grid.End
+
+Program.Sub.GsGrid_CellValueChanged.Start
+F.Intrinsic.Control.Try
+	V.Global.bDataChanged.Set(True)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.GsGrid_CellValueChanged.End
+
+Program.Sub.GsGrid_RowCellClick.Start
+F.Intrinsic.Control.Try
+	V.Local.sSO.Declare(String)
+	V.Local.sParams.Declare(String)
+	V.Local.bUserInSALMODEGroup.Declare(String)
+	
+	F.Intrinsic.Control.If(V.Args.Column.LCase,=,"order_no")
+		F.Intrinsic.UI.InvokeWaitDialog("Opening Screen ....")
+		Gui.frmdash.GsGrid.GetCellValue("Grid_Header",0,V.Args.RowIndex,V.Local.sSO)
+		
+		F.Global.Security.IsInGroup(V.Caller.User,"SALMODE",V.Caller.CompanyCode,V.Local.bUserInSALMODEGroup)
+		
+		F.Intrinsic.Control.If(V.Local.bUserInSALMODEGroup)
+			F.Intrinsic.String.ConcatCallWrapperArgs(V.Local.sSO,"O","*!*ZDR*!*",V.Local.sParams)
+		F.Intrinsic.Control.Else
+			F.Intrinsic.String.ConcatCallWrapperArgs(V.Local.sSO,"V","*!*ZDR*!*",V.Local.sParams)
+		F.Intrinsic.Control.EndIf
+	
+		F.Global.General.CallWrapperSync(200000,V.Local.sParams)
+		
+		F.Intrinsic.UI.CloseWaitDialog
+		
+	F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.Control.If(V.Args.Column.Exists)
+		F.Intrinsic.Control.If(V.Args.Column.LCase,=,"order_no")
+			F.Intrinsic.UI.CloseWaitDialog
+		F.Intrinsic.Control.EndIf
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.GsGrid_RowCellClick.End
+
+Program.Sub.cmdExport_Click.Start
+F.Intrinsic.Control.Try
+	V.Local.sFileName.Declare(String)
+	V.Local.sExportFileFQN.Declare(String)
+	V.Local.sFileContent.Declare(String)
+	V.Local.sTemplateFileFQN.Declare(String)
+	V.Local.LocalGSSTempDir.Declare(String)
+	
+	F.Intrinsic.UI.InvokeWaitDialog("Exporting ...")
+	
+	V.Local.sFileName.Set(V.Ambient.Now)
+	F.Intrinsic.String.StripCharacters(V.Ambient.Now,V.Local.sFileName)
+	
+	'Local gss temp dir sometimes has a right slash and sometimes doesn't. we make sure it does as if it ends with a \ and we append another \ to it 
+	'when building sExportFileFQN then the writespreadsheet call will not write the spreadsheet.
+	F.Intrinsic.Control.If(V.Caller.LocalGSSTempDir.Right1,=,"\")
+		V.Local.LocalGSSTempDir.Set(V.Caller.LocalGSSTempDir)
+	F.Intrinsic.Control.Else
+		F.Intrinsic.String.Build("{0}\",V.Caller.LocalGSSTempDir,V.Local.LocalGSSTempDir)
+	F.Intrinsic.Control.EndIf
+	
+	F.Intrinsic.String.Build("{0}GCG_4687_Pr{1}.xlsx",V.Local.LocalGssTempDir,V.Local.sFileName,V.Local.sExportFileFQN)
+	
+	F.Intrinsic.String.Build("{0}\Production_Log_Template.xlsx",V.Caller.GasDir,V.Local.sTemplateFileFQN)
+	
+	F.Data.DataView.ToString("Header","HeaderV","*!*","$!$",V.Local.sFileContent)
+	
+	'Insert heading for Excel
+	F.Intrinsic.String.Build("Project$!${0}",V.Local.sFileContent,V.Local.sFileContent)
+	F.Automation.MSExcel.WriteSpreadsheet(V.Local.sExportFileFQN,V.Local.sTemplateFileFQN,V.Local.sFileContent)
+	
+	F.Intrinsic.UI.CloseWaitDialog
+	
+	F.Intrinsic.Task.ShellExec(0,"",V.Local.sExportFileFQN,"","",1)
+
+F.Intrinsic.Control.Catch
+	F.Intrinsic.UI.CloseWaitDialog
+	F.Intrinsic.Control.CallSub(CatchError, "Sub", V.Ambient.CurrentSubroutine, "Error", V.Ambient.ErrorNumber, "ErrorDescription", V.Ambient.ErrorDescription)
+F.Intrinsic.Control.EndTry
+Program.Sub.cmdExport_Click.End
+
+Program.Sub.CatchError.Start
+F.Intrinsic.Control.Try
+	V.Local.sErrorMessage.Declare(String)
+	
+	F.Intrinsic.String.Build("Program: GCG_4687_ProductionLog.g2u{0}{0}Sub: {1}{0}Error: {2}{0}Error Description: {3}",V.Ambient.NewLine,V.Args.Sub,V.Args.Error,V.Args.ErrorDescription,V.Local.sErrorMessage)
+	F.Intrinsic.UI.Msgbox(V.Local.sErrorMessage,"Unhandled Error Occurred")
+	
+	F.Intrinsic.Control.If(V.Args.Sub.UCase,=,"frmmaint_unload")
+		F.Intrinsic.Control.End
+	F.Intrinsic.Control.EndIf
+	
+F.Intrinsic.Control.Catch
+	F.Intrinsic.UI.Msgbox("Fatal Error occurred in program GCG_4687_ProductionLog.g2u","Unhandled Error Occurred")
+	F.Intrinsic.Control.End
+F.Intrinsic.Control.EndTry
+Program.Sub.CatchError.End
+
+Program.Sub.Comments.Start
+${$0$}$Open Dashboard$}$RAN$}$5/23/2017 11:30:54 PM$}$False
+${$3$}$0$}$$}$0$}$-1$}$$}$12:00:00 AM$}$This project will create Stand Alone Issues and Receipts based on an incoming excel file.
+Program.Sub.Comments.End
